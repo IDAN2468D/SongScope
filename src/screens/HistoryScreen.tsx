@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert, TextInput, Modal } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import MaterialDesignIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
@@ -11,7 +10,7 @@ type HistoryItem = {
   id: string;
   title: string;
   artist: string;
-  albumCover: string;
+  albumCover: string | null;
   // Add other relevant song details here if needed for navigation to ResultScreen
 };
 
@@ -19,7 +18,7 @@ type Song = {
   id: string;
   title: string;
   artist: string;
-  albumCover: string;
+  albumCover: string | null;
   album?: string;
   previewUrl?: string | null;
   spotifyUrl?: string | null;
@@ -224,17 +223,23 @@ const HistoryScreen: React.FC<Props> = ({ navigation }) => {
       onPress={() => navigation.navigate('Result', { song: item })}
       onLongPress={() => deleteHistoryItem(item.id)}
     >
-      <Image source={{ uri: item.albumCover }} style={styles.albumCover} />
+      {item.albumCover ? (
+        <Image source={{ uri: item.albumCover }} style={styles.albumCover} />
+      ) : (
+        <View style={styles.albumCoverPlaceholder}>
+          <MaterialCommunityIcons name="music-note" size={30} color="#B0B0B0" />
+        </View>
+      )}
       <View style={styles.textContainer}>
         <Text style={styles.songTitle}>{item.title}</Text>
         <Text style={styles.artistName}>{item.artist}</Text>
       </View>
       <View style={styles.itemActions}>
         <TouchableOpacity onPress={() => handleAddToPlaylist(item)} style={styles.addToPlaylistButton}>
-          <MaterialDesignIcons name="playlist-plus" size={24} color="#2ECC71" /> {/* Changed color slightly */}
+          <MaterialCommunityIcons name="playlist-plus" size={24} color="#2ECC71" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => deleteHistoryItem(item.id)} style={styles.deleteButton}>
-          <Icon name="delete" size={24} color="#FF6347" />
+          <MaterialCommunityIcons name="delete" size={24} color="#FF6347" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -250,11 +255,11 @@ const HistoryScreen: React.FC<Props> = ({ navigation }) => {
         {history.length > 0 && (
           <View style={styles.topActionsContainer}>
             <TouchableOpacity onPress={exportHistory} style={styles.headerActionButton}>
-              <Icon name="share" size={24} color="#E0E0E0" />
+              <MaterialCommunityIcons name="share" size={24} color="#E0E0E0" />
               <Text style={styles.headerActionButtonText}>ייצוא</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={clearHistory} style={styles.headerActionButton}>
-              <Icon name="clear-all" size={24} color="#E0E0E0" />
+              <MaterialCommunityIcons name="clear-all" size={24} color="#E0E0E0" />
               <Text style={styles.headerActionButtonText}>נקה הכל</Text>
             </TouchableOpacity>
           </View>
@@ -273,7 +278,7 @@ const HistoryScreen: React.FC<Props> = ({ navigation }) => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Icon name="history" size={50} color="#B0B0B0" />
+              <MaterialCommunityIcons name="history" size={50} color="#B0B0B0" />
               <Text style={styles.emptyText}>
                 {searchQuery ? 'לא נמצאו תוצאות לחיפוש.' : 'אין היסטוריית זיהויים עדיין.'}
               </Text>
@@ -300,7 +305,7 @@ const HistoryScreen: React.FC<Props> = ({ navigation }) => {
                       onPress={() => addSongToPlaylist(item.id)}
                     >
                       <Text style={styles.playlistOptionText}>{item.name}</Text>
-                      <Icon name="chevron-right" size={24} color="#E0E0E0" />
+                      <MaterialCommunityIcons name="chevron-right" size={24} color="#E0E0E0" />
                     </TouchableOpacity>
                   )}
                 />
@@ -398,6 +403,15 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 5,
     marginRight: 15,
+  },
+  albumCoverPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 5,
+    marginRight: 15,
+    backgroundColor: '#282828',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textContainer: {
     flex: 1,

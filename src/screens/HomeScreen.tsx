@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Alert, SafeAreaView, StatusBar, Platform, PermissionsAndroid } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Alert, SafeAreaView, StatusBar, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import DocumentPicker from 'react-native-document-picker';
-import AudioRecord from 'react-native-audio-record';
-import RNFS from 'react-native-fs';
+import PrimaryButton from '../components/PrimaryButton';
+import RecordingButton from '../components/RecordingButton';
+import { useAudioRecording } from '../hooks/useAudioRecording';
 
 // Define your RootStackParamList
 type RootStackParamList = {
@@ -16,21 +16,12 @@ type RootStackParamList = {
 const HomeScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const animatedValue = React.useRef(new Animated.Value(0)).current;
-  const [isRecording, setIsRecording] = React.useState(false);
-  const [recordSeconds, setRecordSeconds] = React.useState(0);
-  const MAX_RECORD_SECONDS = 10;
-  const recordTimerRef = React.useRef<any | null>(null);
 
-  React.useEffect(() => {
-    // configure AudioRecord
-    AudioRecord.init({
-      sampleRate: 44100,
-      channels: 1,
-      bitsPerSample: 16,
-      audioSource: 6,
-      wavFile: `songscope_record_${Date.now()}.wav`,
-    });
-  }, []);
+  const handleRecordingComplete = (audioUri: string) => {
+    navigation.navigate('Processing', { audioUri });
+  };
+
+  const { isRecording, recordSeconds, startRecording, stopRecording, MAX_RECORD_SECONDS } = useAudioRecording(handleRecordingComplete);
 
   React.useEffect(() => {
     Animated.loop(
@@ -56,7 +47,7 @@ const HomeScreen = () => {
   const handleFileUpload = async () => {
     try {
       const res = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.audio], // ✅ רק קבצי אודיו (כולל MP3)
+        type: [DocumentPicker.types.audio],
       });
 
       if (res.uri) {
@@ -72,84 +63,6 @@ const HomeScreen = () => {
     }
   };
 
-  const requestAndroidPermission = async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-        {
-          title: 'Microphone Permission',
-          message: 'נדרש גישה למיקרופון כדי לזהות שירים מתוך הסביבה',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        }
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch (err) {
-      console.warn(err);
-      return false;
-    }
-  };
-
-  const startRecording = async () => {
-    if (Platform.OS === 'android') {
-      const ok = await requestAndroidPermission();
-      if (!ok) {
-        Alert.alert('הרשאה נדחתה', 'אין אפשרות להשתמש במיקרופון ללא הרשאה');
-        return;
-      }
-    }
-    setRecordSeconds(0);
-    setIsRecording(true);
-    AudioRecord.start();
-    recordTimerRef.current = setInterval(() => {
-      setRecordSeconds((s) => {
-        const next = s + 1;
-        if (next >= MAX_RECORD_SECONDS) {
-          stopRecording();
-        }
-        return next;
-      });
-    }, 1000) as any;
-  };
-
-  const stopRecording = async () => {
-    try {
-      const audioFile = await AudioRecord.stop(); // returns file path
-      if (recordTimerRef.current) {
-        clearInterval(recordTimerRef.current);
-        recordTimerRef.current = null;
-      }
-      setIsRecording(false);
-      setRecordSeconds(0);
-
-      // audioFile is a relative filename inside app's files directory on Android
-      // try to resolve a usable file URI
-      let filePath = audioFile;
-      if (!filePath.startsWith('file://')) {
-        filePath = `file://${filePath}`;
-      }
-
-      navigation.navigate('Processing', { audioUri: filePath });
-    } catch (error) {
-      console.error(`stopRecording error: ${String(error)}`);
-      Alert.alert('שגיאה', 'לא ניתן לעצור את ההקלטה');
-      setIsRecording(false);
-    }
-  };
-
-  // Recording functions removed: show fallback message
-  const handleRecordFallback = () => {
-    Alert.alert(
-      'הקלטה לא זמינה',
-      'תמיכה בהקלטה פנימית הוסרה זמנית למניעת בעיות בנייה. בחר קובץ אודיו מהמכשיר או הקלט דוגמית באמצעות אפליקציית הקלטות חיצונית ואז העלה את הקובץ כאן.',
-      [
-        { text: 'בחר קובץ', onPress: () => handleFileUpload() },
-        { text: 'סגור', style: 'cancel' },
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#121212" />
@@ -162,23 +75,18 @@ const HomeScreen = () => {
         </View>
 
         <View style={styles.content}>
-          <TouchableOpacity style={styles.mainButton} onPress={handleFileUpload}>
-            <Icon name="upload" size={30} color="#fff" />
-            <Text style={styles.mainButtonText}>בחר קובץ MP3</Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            title="בחר קובץ MP3"
+            iconName="upload"
+            onPress={handleFileUpload}
+          />
 
-          <TouchableOpacity
-            style={[styles.recordButton, isRecording ? styles.recording : null]}
+          <RecordingButton
+            isRecording={isRecording}
             onPress={() => (isRecording ? stopRecording() : startRecording())}
-          >
-            <Icon name={isRecording ? 'microphone-off' : 'microphone'} size={24} color="#fff" />
-            <Text style={styles.recordButtonText}>{isRecording ? 'עצור הקלטה' : 'זיהוי דרך המיקרופון'}</Text>
-            {isRecording && (
-              <View style={{ marginLeft: 12 }}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>{`${recordSeconds}s / ${MAX_RECORD_SECONDS}s`}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            recordSeconds={recordSeconds}
+            maxRecordSeconds={MAX_RECORD_SECONDS}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -195,13 +103,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#121212',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0, // Adjust for Android status bar
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   wave: {
     position: 'absolute',
     width: '200%',
     height: 300,
-    backgroundColor: 'rgba(30, 215, 96, 0.1)', // Spotify green with transparency
+    backgroundColor: 'rgba(30, 215, 96, 0.1)',
     borderRadius: 200,
     opacity: 0.6,
     bottom: -100,
@@ -223,7 +131,7 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#1DB954', // Spotify green
+    color: '#1DB954',
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: -1, height: 1 },
     textShadowRadius: 10,
@@ -233,65 +141,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 100,
-  },
-  mainButton: {
-    flexDirection: 'row',
-    backgroundColor: '#1DB954',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    elevation: 8, // Android shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  mainButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
-  ctaButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 30,
-    borderWidth: 2,
-    borderColor: '#1DB954',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  ctaButtonText: {
-    color: '#1DB954',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  recordButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#BB0000',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 30,
-    marginTop: 16,
-  },
-  recording: {
-    backgroundColor: '#FF3B30',
-  },
-  recordButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 10,
   },
 });
 

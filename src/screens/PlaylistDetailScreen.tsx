@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Song = {
   id: string;
   title: string;
   artist: string;
-  albumCover: string;
+  albumCover: string | null;
 };
 
 type Playlist = {
@@ -105,13 +105,19 @@ const PlaylistDetailScreen: React.FC<PlaylistDetailScreenProps> = ({ route, navi
       onPress={() => navigation.navigate('Result', { song: item })}
       onLongPress={() => removeSongFromPlaylist(item.id)}
     >
-      <Image source={{ uri: item.albumCover }} style={styles.albumCover} />
+      {item.albumCover ? (
+        <Image source={{ uri: item.albumCover }} style={styles.albumCover} />
+      ) : (
+        <View style={styles.albumCoverPlaceholder}>
+          <MaterialCommunityIcons name="music-note" size={30} color="#B0B0B0" />
+        </View>
+      )}
       <View style={styles.textContainer}>
         <Text style={styles.songTitle}>{item.title}</Text>
         <Text style={styles.artistName}>{item.artist}</Text>
       </View>
       <TouchableOpacity onPress={() => removeSongFromPlaylist(item.id)} style={styles.removeButton}>
-        <Icon name="minus-circle-outline" size={24} color="#FF6347" />
+        <MaterialCommunityIcons name="minus-circle-outline" size={24} color="#FF6347" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -128,7 +134,7 @@ const PlaylistDetailScreen: React.FC<PlaylistDetailScreenProps> = ({ route, navi
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Icon name="music-note" size={50} color="#B0B0B0" />
+              <MaterialCommunityIcons name="music-note" size={50} color="#B0B0B0" />
               <Text style={styles.emptyText}>אין שירים בפלייליסט זה עדיין.</Text>
             </View>
           }
@@ -177,6 +183,15 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 5,
     marginRight: 15,
+  },
+  albumCoverPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 5,
+    marginRight: 15,
+    backgroundColor: '#282828',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textContainer: {
     flex: 1,

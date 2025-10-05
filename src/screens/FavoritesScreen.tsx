@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, StatusBar, Platform, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type FavoriteItem = {
   id: string;
   title: string;
   artist: string;
-  albumCover: string;
+  albumCover: string | null;
 };
 
 type RootStackParamList = {
@@ -80,13 +80,19 @@ const FavoritesScreen: React.FC<Props> = ({ navigation }) => {
       onPress={() => navigation.navigate('Result', { song: item })}
       onLongPress={() => deleteFavoriteItem(item.id)}
     >
-      <Image source={{ uri: item.albumCover }} style={styles.albumCover} />
+      {item.albumCover ? (
+        <Image source={{ uri: item.albumCover }} style={styles.albumCover} />
+      ) : (
+        <View style={styles.albumCoverPlaceholder}>
+          <MaterialCommunityIcons name="music-note" size={30} color="#B0B0B0" />
+        </View>
+      )}
       <View style={styles.textContainer}>
         <Text style={styles.songTitle}>{item.title}</Text>
         <Text style={styles.artistName}>{item.artist}</Text>
       </View>
       <TouchableOpacity onPress={() => deleteFavoriteItem(item.id)} style={styles.deleteButton}>
-        <Icon name="delete" size={24} color="#FF6347" />
+        <MaterialCommunityIcons name="delete" size={24} color="#FF6347" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -103,7 +109,7 @@ const FavoritesScreen: React.FC<Props> = ({ navigation }) => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Icon name="heart-outline" size={50} color="#B0B0B0" />
+              <MaterialCommunityIcons name="heart-outline" size={50} color="#B0B0B0" />
               <Text style={styles.emptyText}>אין שירים מועדפים עדיין.</Text>
             </View>
           }
@@ -152,6 +158,15 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 5,
     marginRight: 15,
+  },
+  albumCoverPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 5,
+    marginRight: 15,
+    backgroundColor: '#282828',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textContainer: {
     flex: 1,
